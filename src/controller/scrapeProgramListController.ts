@@ -14,6 +14,7 @@ export async function openBrowserAndScrape(): Promise<ScrapeResult> {
 	let browser: Browser | null = null;
 	try {
 		browser = await puppeteer.launch({
+			args: ["--no-sandbox", "--disable-setuid-sandbox"],
 			headless: true,
 		});
 
