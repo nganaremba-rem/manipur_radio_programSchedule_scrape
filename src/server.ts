@@ -5,7 +5,8 @@ import { ProgramScheduler } from "./utils/programScheduleWithRetry";
 
 const app = express();
 
-const PORT = process?.env.PORT || 3000;
+const PORT =
+	(process?.env?.PORT && Number.parseInt(process?.env?.PORT)) || 3000;
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: false }));
@@ -29,6 +30,6 @@ process.on("SIGINT", () => {
 
 app.use("/api", apiRoutes);
 
-app.listen(PORT, () =>
+app.listen(PORT, "0.0.0.0", () =>
 	console.log(`Server running at http://localhost:${PORT}`),
 );
