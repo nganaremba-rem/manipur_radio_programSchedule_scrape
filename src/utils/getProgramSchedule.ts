@@ -1,6 +1,6 @@
-import { akashVaniUrl } from "@/controller/scrapeProgramListController";
 import { format } from "date-fns";
 import type { Page } from "puppeteer";
+import { akashVaniUrl } from "../controller/scrapeProgramListController";
 
 export async function getProgramSchedule(page: Page) {
 	await page.waitForNavigation({

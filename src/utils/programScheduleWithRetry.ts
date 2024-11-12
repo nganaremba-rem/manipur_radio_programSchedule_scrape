@@ -1,7 +1,7 @@
-import { openBrowserAndScrape } from "@/controller/scrapeProgramListController";
 import axios from "axios";
 import { format } from "date-fns";
 import cron from "node-cron";
+import { openBrowserAndScrape } from "../controller/scrapeProgramListController";
 import { sanitizeData } from "./sanitizedJson";
 
 export const API_DAILY_PROGRAM =

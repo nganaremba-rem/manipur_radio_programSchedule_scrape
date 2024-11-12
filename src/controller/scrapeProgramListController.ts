@@ -1,10 +1,10 @@
-import { getProgramSchedule } from "@/utils/getProgramSchedule";
+import type { Request, Response } from "express";
+import puppeteer, { type Browser } from "puppeteer";
+import { getProgramSchedule } from "../utils/getProgramSchedule";
 import {
 	ProgramScheduler,
 	type ScrapeResult,
-} from "@/utils/programScheduleWithRetry";
-import type { Request, Response } from "express";
-import puppeteer, { type Browser } from "puppeteer";
+} from "../utils/programScheduleWithRetry";
 
 export const baseUrl = "https://cuesheets.prasarbharati.org";
 export const akashVaniUrl =

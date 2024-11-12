@@ -1,6 +1,6 @@
-import apiRoutes from "@/routes";
 import express from "express";
 import path from "node:path";
+import apiRoutes from "./routes";
 import { ProgramScheduler } from "./utils/programScheduleWithRetry";
 
 const app = express();

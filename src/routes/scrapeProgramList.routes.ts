@@ -1,5 +1,5 @@
-import { scrapeProgramListController } from "@/controller/scrapeProgramListController";
 import { Router } from "express";
+import { scrapeProgramListController } from "../controller/scrapeProgramListController";
 
 const router = Router();
 
