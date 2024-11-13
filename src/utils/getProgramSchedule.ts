@@ -28,8 +28,10 @@ export async function getProgramSchedule(page: Page) {
 				return text
 					.trim()
 					.replace(/\s+/g, " ") // Replace multiple spaces with single space
-					.replace(/\n/g, " ") // Replace newlines with space
-					.substring(0, 100);
+					.replace(/\n/g, " "); // Replace newlines with space
+				// .replace(/[\-\/]/g, "-") // Replace newlines with space
+				// .replace(/[^a-zA-Z0-9\-.:]/g, " "); // Replace newlines with space
+				// .substring(0, 100);
 			}
 
 			function convertTo24Hour(timeStr: string): string {

@@ -192,7 +192,6 @@ export class ProgramScheduler {
 
 			const isAvailable =
 				!!listAvailable?.data?.data || !!listAvailable?.data?.data?.length;
-			console.log(isAvailable, "isAvailable");
 
 			const submitOrUpdate = isAvailable
 				? this.updateDataUsingAxios
