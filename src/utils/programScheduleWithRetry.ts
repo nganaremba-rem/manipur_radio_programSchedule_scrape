@@ -91,9 +91,9 @@ export class ProgramScheduler {
 				"Program schedule successfully retrieved:",
 				result.programSchedule,
 			);
-			this.stopRetryProcess();
 			// Here you can process the program schedule data
 			this.processProgramSchedule(result.programSchedule);
+			this.stopRetryProcess();
 		} else {
 			console.log("Program schedule not available, starting retry process");
 			this.startRetryProcess();
@@ -121,7 +121,8 @@ export class ProgramScheduler {
 					const result = await openBrowserAndScrape();
 					if (result.isAvailable) {
 						console.log("Retry successful, program schedule retrieved");
-						this.handleScrapeResult(result);
+						await this.processProgramSchedule(result.programSchedule); // Direct call to avoid double processing
+						this.stopRetryProcess();
 					} else {
 						console.log("Program schedule still not available");
 					}
@@ -193,9 +194,12 @@ export class ProgramScheduler {
 			const isAvailable =
 				!!listAvailable?.data?.data || !!listAvailable?.data?.data?.length;
 
+			// The issue was here - we weren't binding 'this' context to the methods
+			// When called directly, 'this' context was lost causing the methods to fail
 			const submitOrUpdate = isAvailable
-				? this.updateDataUsingAxios
-				: this.sendDataUsingAxios;
+				? this.updateDataUsingAxios.bind(this)
+				: this.sendDataUsingAxios.bind(this);
+
 			console.log(submitOrUpdate, "fnc");
 			const response = await submitOrUpdate(
 				this.generateDataToSubmit(schedule),
