@@ -56,9 +56,20 @@ export async function openBrowserAndScrape(): Promise<ScrapeResult> {
 
 			// alread logged in
 			console.log("Getting program schedule");
+			const programSchedule = await getProgramSchedule(page);
+			console.log("Program schedule fetched");
+
+			if (programSchedule.length === 0) {
+				console.log("No program schedule found");
+				return {
+					isAvailable: false,
+					programSchedule: [],
+				};
+			}
+
 			return {
 				isAvailable: true,
-				programSchedule: await getProgramSchedule(page),
+				programSchedule,
 			};
 		}
 
