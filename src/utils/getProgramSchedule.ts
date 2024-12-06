@@ -3,24 +3,32 @@ import type { Page } from "puppeteer";
 import { akashVaniUrl } from "../controller/scrapeProgramListController";
 
 export async function getProgramSchedule(page: Page) {
+	console.log("Waiting for navigation");
 	await page.waitForNavigation({
 		waitUntil: "load",
 	});
+	console.log("Navigated to url");
 	await page.goto(`${akashVaniUrl}/${format(new Date(), "yyyy-MM-dd")}`, {
 		waitUntil: "domcontentloaded",
 	});
-
+	console.log(
+		"Navigated to url",
+		`${akashVaniUrl}/${format(new Date(), "yyyy-MM-dd")}`,
+	);
 	// Wait for table to be loaded
+	console.log("Waiting for table to be loaded");
 	await page.waitForSelector("table#st");
 
-	console.log("fetching programschedule");
-
+	console.log("Table loaded");
 	// Extract data from table
+	console.log("Extracting data from table");
 	const programSchedule = await page.evaluate(() => {
+		console.log("Evaluating table rows");
 		const rows = Array.from(document.querySelectorAll("table#st tbody tr"));
 
 		console.log("rows", rows);
 		return rows?.map((row) => {
+			console.log("mapping row", row);
 			function cleanText(text: string | null) {
 				console.log("cleaning text", text);
 				if (!text) return "";
@@ -35,6 +43,7 @@ export async function getProgramSchedule(page: Page) {
 			}
 
 			function convertTo24Hour(timeStr: string): string {
+				console.log("converting to 24 hour", timeStr);
 				// Remove extra spaces and convert to uppercase for consistency
 				const timeString = timeStr.trim().toUpperCase();
 

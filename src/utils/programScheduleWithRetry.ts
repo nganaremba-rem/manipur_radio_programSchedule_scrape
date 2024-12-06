@@ -51,11 +51,13 @@ export class ProgramScheduler {
 	}
 
 	async startScraping(): Promise<void> {
+		console.log("Starting scraping");
 		try {
 			const result = await openBrowserAndScrape();
 			this.handleScrapeResult(result);
 		} catch (error) {
 			console.error("Error during scraping:", error);
+			console.log("Starting retry process");
 			this.startRetryProcess();
 		}
 	}
@@ -69,6 +71,7 @@ export class ProgramScheduler {
 	}
 
 	private generateDataToSubmit(schedule: ProgramSchedule[]): DataToSubmit {
+		console.log("Generating data to submit");
 		return {
 			insertBy: "admin",
 			channel: this.channel,
@@ -86,13 +89,16 @@ export class ProgramScheduler {
 	}
 
 	private handleScrapeResult(result: ScrapeResult): void {
+		console.log("Handling scrape result");
 		if (result.isAvailable) {
 			console.log(
 				"Program schedule successfully retrieved:",
 				result.programSchedule,
 			);
 			// Here you can process the program schedule data
+			console.log("Processing program schedule");
 			this.processProgramSchedule(result.programSchedule);
+			console.log("Stopping retry process");
 			this.stopRetryProcess();
 		} else {
 			console.log("Program schedule not available, starting retry process");
@@ -101,6 +107,7 @@ export class ProgramScheduler {
 	}
 
 	private startRetryProcess(): void {
+		console.log("Starting retry process");
 		if (!this.isRetrying) {
 			this.isRetrying = true;
 			this.scheduleRetry();
@@ -108,6 +115,7 @@ export class ProgramScheduler {
 	}
 
 	private scheduleRetry(): void {
+		console.log("Scheduling retry");
 		// Clear any existing retry timer
 		if (this.retryTimer) {
 			clearTimeout(this.retryTimer);
@@ -135,6 +143,7 @@ export class ProgramScheduler {
 	}
 
 	private stopRetryProcess(): void {
+		console.log("Stopping retry process");
 		if (this.retryTimer) {
 			clearInterval(this.retryTimer);
 			this.retryTimer = null;
@@ -183,10 +192,11 @@ export class ProgramScheduler {
 	}
 
 	private async processProgramSchedule(schedule: ProgramSchedule[]) {
+		console.log("Processing program schedule");
 		try {
 			// Process the retrieved schedule data
 			const API_URL = `${API_DAILY_PROGRAM}/getData?date=${format(new Date(), "yyyy-MM-dd")}&channel=${this.channel}`;
-
+			console.log("Fetching data from API", API_URL);
 			const listAvailable = await axios.get(API_URL);
 
 			console.log(listAvailable?.data, "today");
@@ -201,6 +211,8 @@ export class ProgramScheduler {
 				: this.sendDataUsingAxios.bind(this);
 
 			console.log(submitOrUpdate, "fnc");
+
+			console.log("Submitting data");
 			const response = await submitOrUpdate(
 				this.generateDataToSubmit(schedule),
 			);
