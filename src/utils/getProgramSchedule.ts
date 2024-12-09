@@ -1,32 +1,39 @@
 import { format } from "date-fns";
 import type { Page } from "puppeteer";
 import { akashVaniUrl } from "../controller/scrapeProgramListController";
+import { logger } from "./logger";
 
 export async function getProgramSchedule(page: Page) {
 	try {
-		console.log("Waiting for navigation");
+		logger.info("Waiting for navigation");
 		await page.waitForNavigation({
 			waitUntil: "load",
 			timeout: 120000,
 		});
-		console.log("Navigated to url");
+		logger.info("Navigated to url");
 		await page.goto(`${akashVaniUrl}/${format(new Date(), "yyyy-MM-dd")}`, {
 			waitUntil: "domcontentloaded",
+			timeout: 120000,
 		});
-		console.log(
+		logger.info(
 			"Navigated to url",
 			`${akashVaniUrl}/${format(new Date(), "yyyy-MM-dd")}`,
 		);
 		// Wait for table to be loaded
-		console.log("Waiting for table to be loaded");
-		await page.waitForSelector("table#st");
+		logger.info("Waiting for table to be loaded");
+		await page.waitForSelector("table#st", {
+			timeout: 120000,
+		});
 
-		console.log("Table loaded");
+		logger.info("Table loaded");
 		// Extract data from table
-		console.log("Extracting data from table");
+		logger.info("Extracting data from table");
+
 		const programSchedule = await page.evaluate(() => {
 			console.log("Evaluating table rows");
-			const rows = Array.from(document.querySelectorAll("table#st tbody tr"));
+			const rows = Array.from(
+				document.querySelectorAll("table#st tbody > tr:not(tr tr)"),
+			);
 
 			console.log("rows", rows);
 			return rows?.map((row) => {
@@ -35,26 +42,30 @@ export async function getProgramSchedule(page: Page) {
 					console.log("cleaning text", text);
 					if (!text) return "";
 
-					return text
-						.trim()
-						.replace(/\s+/g, " ") // Replace multiple spaces with single space
-						.replace(/\n/g, " "); // Replace newlines with space
+					return (
+						text
+							.trim()
+							.replace(/\s+/g, " ") // Replace multiple spaces with single space
+							.replace(/\n/g, " ") // Replace newlines with space
+							// replace all " with '
+							.replace(/"/g, "`")
+					);
 					// .replace(/[\-\/]/g, "-") // Replace newlines with space
 					// .replace(/[^a-zA-Z0-9\-.:]/g, " "); // Replace newlines with space
 					// .substring(0, 100);
 				}
 
-				function convertTo24Hour(timeStr: string): string {
+				function convertTo24Hour(timeStr: string | undefined | null): string {
 					console.log("converting to 24 hour", timeStr);
 					// Remove extra spaces and convert to uppercase for consistency
-					const timeString = timeStr.trim().toUpperCase();
+					const timeString = timeStr?.trim().toUpperCase() ?? "";
 
 					// Extract hours, minutes, and period (AM/PM)
 					const matches = timeString.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
 
 					if (!matches) {
 						throw new Error(
-							'Invalid time format. Expected "HH:MM AM/PM" or "HH:MM"',
+							`Invalid time format. Expected "HH:MM AM/PM" or "HH:MM", TimeStr received - ${timeString}, Match - ${matches}`,
 						);
 					}
 
@@ -80,10 +91,14 @@ export async function getProgramSchedule(page: Page) {
 				function getContent(cell: Element | null) {
 					console.log("getting content", cell);
 					if (!cell) return "";
-					// Check for paragraphs or divs first
-					const content = cell.querySelector("p, div");
-					if (content) {
-						return cleanText(content.textContent);
+					// Get all paragraphs and divs
+					const contents = cell.querySelectorAll("p, div");
+					if (contents.length > 0) {
+						// Combine text from all p and div elements
+						const combinedText = Array.from(contents)
+							.map((el) => el.textContent)
+							.join(" ");
+						return cleanText(combinedText);
 					}
 					return cleanText(cell.textContent);
 				}
@@ -104,9 +119,22 @@ export async function getProgramSchedule(page: Page) {
 				};
 			});
 		});
-		return programSchedule;
+		return {
+			isError: false,
+			errorMessage: "",
+			programSchedule,
+			isAvailable: true,
+		};
 	} catch (err) {
-		console.log(err);
-		return [];
+		logger.error(
+			`Error in getProgramSchedule: ${JSON.stringify(err)}`,
+			err as Error,
+		);
+		return {
+			isError: true,
+			errorMessage: (err as Error).message,
+			programSchedule: [],
+			isAvailable: false,
+		};
 	}
 }

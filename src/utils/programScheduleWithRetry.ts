@@ -2,6 +2,7 @@ import axios from "axios";
 import { format } from "date-fns";
 import cron from "node-cron";
 import { openBrowserAndScrape } from "../controller/scrapeProgramListController";
+import { logger } from "./logger";
 import { sanitizeData } from "./sanitizedJson";
 
 export const API_DAILY_PROGRAM =
@@ -23,6 +24,8 @@ export interface ProgramSchedule {
 export interface ScrapeResult {
 	isAvailable: boolean;
 	programSchedule: ProgramSchedule[];
+	isError: boolean;
+	errorMessage: string;
 }
 
 type DataToSubmit = {
@@ -42,36 +45,87 @@ export class ProgramScheduler {
 	private retryTimer: NodeJS.Timeout | null = null;
 	private isRetrying = false;
 	private channel: string;
+	private cronJob: cron.ScheduledTask | null;
 
 	constructor(shouldSchedule = true, channel = "SANGAI") {
 		// Initialize the daily schedule at 5 AM
 		this.channel = channel;
+		this.cronJob = null;
 
 		if (shouldSchedule) this.initializeDailySchedule();
 	}
 
-	async startScraping(): Promise<void> {
-		console.log("Starting scraping");
+	start() {
+		logger.info("Starting program scheduler...");
+		this.startScraping();
+	}
+
+	async startScraping(): Promise<ScrapeResult> {
+		logger.info("Starting scraping");
 		try {
 			const result = await openBrowserAndScrape();
+			if (result.isError) {
+				return {
+					isAvailable: false,
+					programSchedule: [],
+					isError: true,
+					errorMessage: result.errorMessage,
+				};
+			}
 			this.handleScrapeResult(result);
+			return {
+				isAvailable: true,
+				programSchedule: result.programSchedule,
+				isError: false,
+				errorMessage: "",
+			};
 		} catch (error) {
-			console.error("Error during scraping:", error);
-			console.log("Starting retry process");
+			logger.error("Error during scraping:", error as Error);
+			logger.info("Starting retry process");
 			this.startRetryProcess();
+			return {
+				isAvailable: false,
+				programSchedule: [],
+				isError: true,
+				errorMessage: (error as Error).message,
+			};
 		}
 	}
 
 	private initializeDailySchedule(): void {
 		// Schedule the main task to run at 5 AM daily
-		cron.schedule("0 5 * * *", () => {
-			console.log("Starting daily schedule check at 5 AM");
-			this.startScraping();
-		});
+		this.cronJob = cron.schedule(
+			"0 5 * * *",
+			() => {
+				logger.info("Starting daily schedule check at 5 AM");
+				this.startScraping()
+					.then((result) => {
+						if (result.isError) {
+							logger.error(result.errorMessage);
+						}
+						logger.info("Daily schedule check completed", result);
+					})
+					.catch((error) => {
+						logger.error("Error during daily schedule check:", error as Error);
+					});
+			},
+			{
+				scheduled: true,
+				timezone: "Asia/Kolkata",
+			},
+		);
+	}
+
+	stopCron() {
+		if (this.cronJob) {
+			this.cronJob.stop(); // Stops the cron job
+			this.cronJob = null; // Clear the reference
+			logger.info("Cron job stopped");
+		}
 	}
 
 	private generateDataToSubmit(schedule: ProgramSchedule[]): DataToSubmit {
-		console.log("Generating data to submit");
+		logger.info("Generating data to submit");
 		return {
 			insertBy: "admin",
 			channel: this.channel,
@@ -89,25 +143,25 @@ export class ProgramScheduler {
 	}
 
 	private handleScrapeResult(result: ScrapeResult): void {
-		console.log("Handling scrape result");
+		logger.info("Handling scrape result");
 		if (result.isAvailable) {
-			console.log(
+			logger.info(
 				"Program schedule successfully retrieved:",
 				result.programSchedule,
 			);
 			// Here you can process the program schedule data
-			console.log("Processing program schedule");
+			logger.info("Processing program schedule");
 			this.processProgramSchedule(result.programSchedule);
-			console.log("Stopping retry process");
+			logger.info("Stopping retry process");
 			this.stopRetryProcess();
 		} else {
-			console.log("Program schedule not available, starting retry process");
+			logger.info("Program schedule not available, starting retry process");
 			this.startRetryProcess();
 		}
 	}
 
 	private startRetryProcess(): void {
-		console.log("Starting retry process");
+		logger.info("Starting retry process");
 		if (!this.isRetrying) {
 			this.isRetrying = true;
 			this.scheduleRetry();
@@ -115,7 +169,7 @@ export class ProgramScheduler {
 	}
 
 	private scheduleRetry(): void {
-		console.log("Scheduling retry");
+		logger.info("Scheduling retry");
 		// Clear any existing retry timer
 		if (this.retryTimer) {
 			clearTimeout(this.retryTimer);
@@ -124,18 +178,18 @@ export class ProgramScheduler {
 		// Set up the 5-minute retry interval
 		this.retryTimer = setInterval(
 			async () => {
-				console.log("Retrying scrape...");
+				logger.info("Retrying scrape...");
 				try {
 					const result = await openBrowserAndScrape();
 					if (result.isAvailable) {
-						console.log("Retry successful, program schedule retrieved");
+						logger.info("Retry successful, program schedule retrieved");
 						await this.processProgramSchedule(result.programSchedule); // Direct call to avoid double processing
 						this.stopRetryProcess();
 					} else {
-						console.log("Program schedule still not available");
+						logger.info("Program schedule still not available");
 					}
 				} catch (error) {
-					console.error("Error during retry:", error);
+					logger.error("Error during retry:", error as Error);
 				}
 			},
 			5 * 60 * 1000,
@@ -143,13 +197,13 @@ export class ProgramScheduler {
 	}
 
 	private stopRetryProcess(): void {
-		console.log("Stopping retry process");
+		logger.info("Stopping retry process");
 		if (this.retryTimer) {
 			clearInterval(this.retryTimer);
 			this.retryTimer = null;
 		}
 		this.isRetrying = false;
-		console.log(
+		logger.info(
 			"Retry process stopped. Waiting for next daily schedule at 5 AM",
 		);
 	}
@@ -168,7 +222,7 @@ export class ProgramScheduler {
 
 			return response.data;
 		} catch (error) {
-			console.error("Error sending data:", error);
+			logger.error("Error sending data:", error as Error);
 			throw error;
 		}
 	}
@@ -186,20 +240,20 @@ export class ProgramScheduler {
 
 			return response?.data;
 		} catch (error) {
-			console.error("Error sending data:", error);
+			logger.error("Error sending data:", error as Error);
 			throw error;
 		}
 	}
 
 	private async processProgramSchedule(schedule: ProgramSchedule[]) {
-		console.log("Processing program schedule");
+		logger.info("Processing program schedule");
 		try {
 			// Process the retrieved schedule data
 			const API_URL = `${API_DAILY_PROGRAM}/getData?date=${format(new Date(), "yyyy-MM-dd")}&channel=${this.channel}`;
-			console.log("Fetching data from API", API_URL);
+			logger.info("Fetching data from API", API_URL);
 			const listAvailable = await axios.get(API_URL);
 
-			console.log(listAvailable?.data, "today");
+			logger.info(listAvailable?.data, "today");
 
 			const isAvailable =
 				!!listAvailable?.data?.data || !!listAvailable?.data?.data?.length;
@@ -210,26 +264,31 @@ export class ProgramScheduler {
 				? this.updateDataUsingAxios.bind(this)
 				: this.sendDataUsingAxios.bind(this);
 
-			console.log(submitOrUpdate, "fnc");
+			logger.info(submitOrUpdate.toString(), "fnc");
 
-			console.log("Submitting data");
-			const response = await submitOrUpdate(
-				this.generateDataToSubmit(schedule),
-			);
+			const dataToSubmit = this.generateDataToSubmit(schedule);
+			logger.info(JSON.stringify(dataToSubmit, null, 2), "dataToSubmit");
+
+			logger.info("Submitting data");
+			const response = await submitOrUpdate(dataToSubmit);
 
 			if (response?.statusCode === 1) {
-				console.log("Submitted successfully");
+				logger.info("Submitted successfully");
 			} else {
-				console.log("Submission failed!", response);
+				logger.info("Submission failed!", response);
 			}
-			console.log(`Processing ${schedule.length} program entries`);
+			logger.info(`Processing ${schedule.length} program entries`);
 		} catch (err) {
-			console.log(err);
+			logger.error(
+				`Error in processProgramSchedule: ${JSON.stringify(err)}`,
+				err as Error,
+			);
 		}
 	}
 
 	// Method to manually stop the scheduler if needed
 	public stop(): void {
+		logger.info("Stopping program scheduler...");
 		this.stopRetryProcess();
 	}
 }
