@@ -5,8 +5,10 @@ import { openBrowserAndScrape } from "../controller/scrapeProgramListController"
 import { logger } from "./logger";
 import { sanitizeData } from "./sanitizedJson";
 
+// export const API_DAILY_PROGRAM =
+// 	"http://ec2-34-208-96-17.us-west-2.compute.amazonaws.com:8080/radio_api/dailyProgram";
 export const API_DAILY_PROGRAM =
-	"http://ec2-34-208-96-17.us-west-2.compute.amazonaws.com:8080/radio_api/dailyProgram";
+	"http://167.71.226.228:8080/dailyProgram";
 
 export interface ProgramSchedule {
 	serialNumber: string;
