@@ -103,6 +103,7 @@ export class ProgramScheduler {
 				this.startScraping()
 					.then((result) => {
 						if (result.isError) {
+							this.handleScrapeResult(result);
 							logger.error(result.errorMessage);
 						}
 						logger.info("Daily schedule check completed", result);
